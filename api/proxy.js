@@ -1,19 +1,20 @@
+// جلب مكتبة axios الحديثة والسهلة لتوصيل البيانات
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-    // تفعيل الـ CORS لتسمح لتطبيق الهاتف بالاتصال بالسيرفر
+    // تفعيل الـ CORS لتسمح لتطبيق الهاتف بالاتصال بالسيرفر بدون مشاكل
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Secret-Key');
 
-    // التعامل مع طلبات الـ OPTIONS المبدئية من الهواتف
+    // التعامل مع طلبات الـ OPTIONS المبدئية التي ترسلها الهواتف تلقائياً
     if (req.method === 'OPTIONS') {
         res.status(200).end();
         return;
     }
 
-    // 1. حزام الأمان: التأكد من وجود الرمز السري الصحيح لحماية سيرفرك
+    // 1. حزام الأمان: التأكد من وجود الرمز السري الصحيح لحماية سيرفرك من الغرباء
     const secretKey = req.headers['x-secret-key'] || req.query.secret;
     const MY_SECRET = "Q1w2e3r4t5y6u7i8o9p0M";
 
@@ -21,15 +22,16 @@ module.exports = async (req, res) => {
         return res.status(403).json({ error: "غير مسموح بالدخول: الرمز السري غير صحيح أو مفقود!" });
     }
 
-    // 2. سحر الذاكرة المؤقتة (Cache) لمدة 30 ثانية لحماية حسابك من الحظر والتوقف
+    // 2. سحر الذاكرة المؤقتة (Cache) لمدة 30 ثانية لحماية حسابك من الحظر والتوقف عند ضغط المستخدمين
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate');
 
-    // 3. تحديد الرابط المطلوب (إما مباريات اليوم تلقائياً أو الترتيب حسب اختيار المستخدم)
+    // 3. تحديد الرابط المطلوب (إما مباريات اليوم تلقائياً أو الترتيب حسب الدوري الذي يختاره المستخدم)
     const endpoint = req.query.endpoint || 'matches';
     const targetUrl = `https://api.football-data.org/v4/${endpoint}`;
     const API_KEY = "19b10cbe43c3403da9c7b0bd20964bed";
 
     try {
+        // جلب البيانات بلمشة واحدة وبسرعة
         const response = await axios.get(targetUrl, {
             headers: { 'X-Auth-Token': API_KEY }
         });
