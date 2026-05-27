@@ -5,119 +5,284 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>MatchPulse ⚽</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-</head>
-<body style="background:#07090f;color:#ddeeff;font-family:Cairo,sans-serif;margin:0;display:flex;flex-direction:column;height:100vh;overflow:hidden">
-
-<header style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(0,212,255,0.1);background:rgba(7,9,15,0.97);position:sticky;top:0;z-index:50">
-<div style="display:flex;align-items:center;gap:9px">
-<div style="width:34px;height:34px;background:linear-gradient(135deg,#00d4ff,#0077aa);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px">⚽</div>
-<span style="font-family:Bebas Neue,sans-serif;font-size:24px;letter-spacing:2px;background:linear-gradient(90deg,#00d4ff,#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">MATCHPULSE</span>
-</div>
-<div style="display:flex;align-items:center;gap:6px;background:rgba(255,51,85,0.12);border:1px solid rgba(255,51,85,0.35);border-radius:20px;padding:4px 11px;font-size:11px;font-weight:700;color:#ff3355">
-<div style="width:6px;height:6px;background:#ff3355;border-radius:50%;animation:blink 1.1s infinite"></div>LIVE
-</div>
-</header>
-
-<div style="display:flex;border-bottom:1px solid rgba(0,212,255,0.1);background:#0d1220">
-<button onclick="setTab('LIVE',this)" style="flex:1;padding:11px;font-size:13px;font-weight:700;color:#00d4ff;border:none;background:none;border-bottom:2px solid #00d4ff;cursor:pointer">🔴 مباشر</button>
-<button onclick="setTab('SCHEDULED',this)" style="flex:1;padding:11px;font-size:13px;font-weight:700;color:#4a6580;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer">📅 القادمة</button>
-<button onclick="setTab('FINISHED',this)" style="flex:1;padding:11px;font-size:13px;font-weight:700;color:#4a6580;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer">✅ النتائج</button>
-</div>
-
-<div style="flex:1;overflow-y:auto;padding:10px 12px 80px" id="content">
-<div id="loader" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px 0">
-<div style="width:38px;height:38px;border:3px solid rgba(0,212,255,0.1);border-top-color:#00d4ff;border-radius:50%;animation:spin .8s linear infinite"></div>
-<p style="color:#4a6580;font-size:13px">جارٍ تحميل المباريات...</p>
-</div>
-<div id="matchList" style="display:none"></div>
-</div>
-
-<div style="display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(7,9,15,.97);border-top:1px solid rgba(0,212,255,0.1)">
-<button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px;font-size:9px;color:#00d4ff;border:none;background:none">⚽<span>مباريات</span></button>
-<button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px;font-size:9px;color:#4a6580;border:none;background:none">🏆<span>ترتيب</span></button>
-<button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px;font-size:9px;color:#4a6580;border:none;background:none">📊<span>إحصاء</span></button>
-<button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px;font-size:9px;color:#4a6580;border:none;background:none">🔔<span>تنبيه</span></button>
-</div>
-
 <style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#07090f;color:#ddeeff;font-family:'Cairo',sans-serif}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.mc{background:#111827;border:1px solid rgba(0,212,255,0.1);border-radius:13px;padding:13px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;animation:fadeUp .3s ease both}
-.mc.live{border-color:rgba(255,51,85,.3);background:linear-gradient(135deg,#111827,#140f1a)}
+body{display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(0,212,255,0.12);background:rgba(7,9,15,0.98);flex-shrink:0;z-index:50}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#00d4ff,#0077aa);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo-text{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;background:linear-gradient(90deg,#00d4ff,#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.live-pill{display:flex;align-items:center;gap:5px;background:rgba(255,51,85,0.12);border:1px solid rgba(255,51,85,0.35);border-radius:20px;padding:4px 11px;font-size:11px;font-weight:700;color:#ff3355}
+.live-dot{width:6px;height:6px;background:#ff3355;border-radius:50%;animation:blink 1.1s infinite}
+.tabs{display:flex;border-bottom:1px solid rgba(0,212,255,0.1);background:#0d1220;flex-shrink:0}
+.tab{flex:1;padding:11px 6px;font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;color:#4a6580;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s}
+.tab.active{color:#00d4ff;border-bottom-color:#00d4ff}
+.scroll{flex:1;overflow-y:auto;padding:8px 12px 80px}
+.scroll::-webkit-scrollbar{width:3px}
+.scroll::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.1);border-radius:3px}
+.sh{display:flex;align-items:center;gap:8px;margin:14px 0 7px}
+.sh-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#4a6580}
+.sh-line{flex:1;height:1px;background:rgba(0,212,255,0.1)}
+.mc{background:#111827;border:1px solid rgba(0,212,255,0.1);border-radius:13px;padding:13px 15px;margin-bottom:7px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;animation:fadeUp .3s ease both;position:relative;overflow:hidden}
+.mc.live-card{border-color:rgba(255,51,85,.3);background:linear-gradient(135deg,#111827,#140f1a)}
+.mc.live-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#ff3355,transparent);animation:blink 2s infinite}
 .team{display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center}
-.logo{width:40px;height:40px;object-fit:contain}
-.tname{font-size:12px;font-weight:700;max-width:76px;line-height:1.2}
+.tlogo{width:40px;height:40px;object-fit:contain}
+.tph{width:40px;height:40px;border-radius:50%;background:#0d1220;border:1px solid rgba(0,212,255,0.1);display:flex;align-items:center;justify-content:center;font-size:18px}
+.tname{font-size:12px;font-weight:700;line-height:1.2;max-width:76px}
 .sc{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:76px}
 .snum{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:3px;color:#fff;line-height:1}
 .stime{font-size:10px;font-weight:700}
-.tlive{color:#ff3355;animation:blink 1.2s infinite}
-.tsched{color:#00d4ff}.tdone{color:#4a6580}
+.t-live{color:#ff3355;animation:blink 1.2s infinite}
+.t-sched{color:#00d4ff}
+.t-done{color:#4a6580}
+.scomp{font-size:9px;color:#4a6580;margin-top:1px;text-align:center}
+.loader{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px 0}
+.spinner{width:38px;height:38px;border:3px solid rgba(0,212,255,0.1);border-top-color:#00d4ff;border-radius:50%;animation:spin .8s linear infinite}
+.empty{text-align:center;padding:50px 20px;color:#4a6580}
+.empty-icon{font-size:44px;margin-bottom:10px;opacity:.4}
+.err{background:rgba(255,51,85,.1);border:1px solid rgba(255,51,85,.3);border-radius:12px;padding:14px;margin:10px 0;text-align:center;color:#ff3355;font-size:13px}
+.last-upd{text-align:center;font-size:10px;color:#4a6580;padding:6px 0}
+.toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(20px);background:#00d4ff;color:#000;padding:8px 16px;border-radius:20px;font-weight:700;font-size:12px;opacity:0;transition:all .35s;z-index:200;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* BOTTOM NAV */
+.bnav{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(7,9,15,.98);backdrop-filter:blur(14px);border-top:1px solid rgba(0,212,255,0.12);z-index:100;height:60px}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-size:9px;color:#4a6580;font-weight:700;border:none;background:none;transition:color .2s;padding:0}
+.ni .ic{font-size:20px;line-height:1}
+.ni.active{color:#00d4ff}
+
+/* PAGES */
+.page{display:none;height:100%;overflow-y:auto;padding:12px 12px 80px}
+.page.active{display:block}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:#00d4ff;margin-bottom:16px;text-align:center}
+.coming-soon{text-align:center;padding:60px 20px;color:#4a6580}
+.coming-soon .cs-icon{font-size:60px;margin-bottom:16px;opacity:.5}
+.coming-soon p{font-size:14px;line-height:1.8}
 </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚽</div>
+    <div class="logo-text">MATCHPULSE</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+    <button onclick="refreshMatches()" style="background:none;border:1px solid rgba(0,212,255,0.15);border-radius:8px;padding:5px 10px;color:#4a6580;font-size:16px;cursor:pointer" id="rfbtn">↻</button>
+  </div>
+</header>
+
+<!-- TABS (تبويبات المباريات) -->
+<div class="tabs" id="matchTabs">
+  <button class="tab active" onclick="setTab('LIVE',this)">🔴 مباشر</button>
+  <button class="tab" onclick="setTab('SCHEDULED',this)">📅 القادمة</button>
+  <button class="tab" onclick="setTab('FINISHED',this)">✅ النتائج</button>
+</div>
+
+<!-- PAGES -->
+<!-- صفحة المباريات -->
+<div class="page active" id="page-matches">
+  <div class="loader" id="loader"><div class="spinner"></div><p style="color:#4a6580;font-size:13px">جارٍ التحميل...</p></div>
+  <div id="matchList" style="display:none"></div>
+  <div class="last-upd" id="lastUpd" style="display:none"></div>
+</div>
+
+<!-- صفحة الترتيب -->
+<div class="page" id="page-standings">
+  <div class="coming-soon">
+    <div class="cs-icon">🏆</div>
+    <div class="page-title">الترتيب</div>
+    <p>جدول ترتيب الدوريات<br>قريباً ✨</p>
+  </div>
+</div>
+
+<!-- صفحة الإحصاء -->
+<div class="page" id="page-stats">
+  <div class="coming-soon">
+    <div class="cs-icon">📊</div>
+    <div class="page-title">الإحصائيات</div>
+    <p>إحصائيات اللاعبين والفرق<br>قريباً ✨</p>
+  </div>
+</div>
+
+<!-- صفحة التنبيهات -->
+<div class="page" id="page-alerts">
+  <div class="coming-soon">
+    <div class="cs-icon">🔔</div>
+    <div class="page-title">التنبيهات</div>
+    <p>تنبيهات الأهداف والمباريات<br>قريباً ✨</p>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+  <button class="ni active" id="nav-matches" onclick="showPage('matches')">
+    <span class="ic">⚽</span>مباريات
+  </button>
+  <button class="ni" id="nav-standings" onclick="showPage('standings')">
+    <span class="ic">🏆</span>ترتيب
+  </button>
+  <button class="ni" id="nav-stats" onclick="showPage('stats')">
+    <span class="ic">📊</span>إحصاء
+  </button>
+  <button class="ni" id="nav-alerts" onclick="showPage('alerts')">
+    <span class="ic">🔔</span>تنبيه
+  </button>
+</div>
 
 <script>
-const PROXY="https://football-backend-umber.vercel.app";
-let currentStatus="LIVE";
+const PROXY = "https://football-backend-umber.vercel.app";
+let currentStatus = "LIVE";
+let allMatches = [];
+let autoTimer = null;
+let currentPage = "matches";
 
-async function loadMatches(){
-  document.getElementById("loader").style.display="flex";
-  document.getElementById("matchList").style.display="none";
-  try{
-    const p=currentStatus==="LIVE"?{status:"IN_PLAY,PAUSED,HALFTIME"}:{status:currentStatus,dateFrom:new Date().toISOString().slice(0,10),dateTo:new Date().toISOString().slice(0,10)};
-    const qs=new URLSearchParams(p).toString();
-    const r=await fetch(`${PROXY}/api/football?path=/matches&${qs}`);
-    const d=await r.json();
-    render(d.matches||[]);
-  }catch(e){
-    document.getElementById("matchList").innerHTML='<div style="text-align:center;padding:40px;color:#ff3355">⚠️ تعذر الاتصال</div>';
-  }
-  document.getElementById("loader").style.display="none";
-  document.getElementById("matchList").style.display="block";
+// ── التنقل بين الصفحات ──
+function showPage(page) {
+  // إخفاء كل الصفحات
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".ni").forEach(n => n.classList.remove("active"));
+  document.getElementById("matchTabs").style.display = page === "matches" ? "flex" : "none";
+
+  // إظهار الصفحة المطلوبة
+  document.getElementById("page-" + page).classList.add("active");
+  document.getElementById("nav-" + page).classList.add("active");
+  currentPage = page;
 }
 
-function render(matches){
-  if(!matches.length){
-    document.getElementById("matchList").innerHTML='<div style="text-align:center;padding:50px;color:#4a6580"><div style="font-size:44px;opacity:.4">⚽</div><p>لا توجد مباريات</p></div>';
+// ── تحميل المباريات ──
+async function loadMatches(manual=false) {
+  document.getElementById("loader").style.display = "flex";
+  document.getElementById("matchList").style.display = "none";
+  document.getElementById("lastUpd").style.display = "none";
+  if(manual) animSpin();
+
+  try {
+    let params;
+    if(currentStatus === "LIVE") {
+      params = { status: "IN_PLAY,PAUSED,HALFTIME" };
+    } else {
+      const today = new Date().toISOString().slice(0,10);
+      params = { status: currentStatus, dateFrom: today, dateTo: today };
+    }
+
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(`${PROXY}/api/football?path=/matches&${qs}`);
+    const data = await res.json();
+    allMatches = data.matches || [];
+    renderMatches(allMatches);
+    updateTime();
+    if(manual) toast("✅ " + allMatches.length + " مباراة");
+
+    clearInterval(autoTimer);
+    if(currentStatus === "LIVE") {
+      autoTimer = setInterval(() => loadMatches(), 45000);
+    }
+  } catch(e) {
+    document.getElementById("matchList").innerHTML = `<div class="err">⚠️ تعذّر الاتصال</div>`;
+    document.getElementById("matchList").style.display = "block";
+  }
+
+  document.getElementById("loader").style.display = "none";
+  document.getElementById("matchList").style.display = "block";
+  document.getElementById("lastUpd").style.display = "block";
+}
+
+function refreshMatches() {
+  if(currentPage === "matches") loadMatches(true);
+}
+
+// ── عرض المباريات ──
+function renderMatches(matches) {
+  const list = document.getElementById("matchList");
+  if(!matches.length) {
+    let msg = currentStatus==="LIVE"
+      ? "<br>لا توجد مباريات مباشرة الآن<br><small style='font-size:11px'>جرّب تبويب القادمة أو النتائج</small>"
+      : "<br>لا توجد مباريات اليوم";
+    list.innerHTML = `<div class="empty"><div class="empty-icon">⚽</div><p>${msg}</p></div>`;
     return;
   }
-  const groups={};
-  matches.forEach(m=>{const k=m.competition?.id||"?";if(!groups[k])groups[k]={name:m.competition?.name,matches:[]};groups[k].matches.push(m);});
-  let html="";
-  Object.values(groups).forEach(g=>{
-    html+=`<div style="display:flex;align-items:center;gap:8px;margin:14px 0 7px"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#4a6580">${g.name||"بطولة"}</span><div style="flex:1;height:1px;background:rgba(0,212,255,0.1)"></div></div>`;
-    g.matches.forEach((m,i)=>{html+=card(m,i);});
+
+  const groups = {};
+  matches.forEach(m => {
+    const k = m.competition?.id || "?";
+    if(!groups[k]) groups[k] = { comp: m.competition, list: [] };
+    groups[k].list.push(m);
   });
-  document.getElementById("matchList").innerHTML=html;
+
+  let html = "";
+  Object.values(groups).forEach(g => {
+    html += `<div class="sh"><span class="sh-name">${g.comp?.name||"بطولة"}</span><div class="sh-line"></div></div>`;
+    g.list.forEach((m,i) => { html += buildCard(m,i); });
+  });
+  list.innerHTML = html;
 }
 
-function card(m,i){
-  const isLive=["IN_PLAY","PAUSED","HALFTIME"].includes(m.status);
-  const isDone=m.status==="FINISHED";
-  const hs=m.score?.fullTime?.home??m.score?.halfTime?.home;
-  const as=m.score?.fullTime?.away??m.score?.halfTime?.away;
-  const score=(isLive||isDone)&&hs!==null?`${hs}–${as}`:"vs";
-  let tclass="tsched",tlabel="";
-  if(isLive){tclass="tlive";tlabel=m.minute?`🔴 ${m.minute}'`:"🔴 مباشر";}
-  else if(isDone){tclass="tdone";tlabel="انتهت";}
-  else{tlabel=new Date(m.utcDate).toLocaleTimeString("ar",{hour:"2-digit",minute:"2-digit",hour12:false});}
-  const hl=m.homeTeam?.crest?`<img class="logo" src="${m.homeTeam.crest}" onerror="this.style.display='none'">`:"⚽";
-  const al=m.awayTeam?.crest?`<img class="logo" src="${m.awayTeam.crest}" onerror="this.style.display='none'">`:"⚽";
-  return`<div class="mc ${isLive?"live":""}" style="animation-delay:${i*.06}s">
+// ── بناء كارت المباراة ──
+function buildCard(m, idx) {
+  const isLive = ["IN_PLAY","PAUSED","HALFTIME"].includes(m.status);
+  const isDone = m.status === "FINISHED";
+  const hs = m.score?.fullTime?.home ?? m.score?.halfTime?.home;
+  const as = m.score?.fullTime?.away ?? m.score?.halfTime?.away;
+  const score = (isLive||isDone) && hs!==null ? `${hs}–${as}` : "vs";
+
+  let tc="t-sched", tl="";
+  if(isLive){ tc="t-live"; tl=m.minute?`🔴 ${m.minute}'`:m.status==="HALFTIME"?"استراحة":"🔴 مباشر"; }
+  else if(isDone){ tc="t-done"; tl="انتهت"; }
+  else{ tl=new Date(m.utcDate).toLocaleTimeString("ar",{hour:"2-digit",minute:"2-digit",hour12:false}); }
+
+  const hl = m.homeTeam?.crest
+    ? `<img class="tlogo" src="${m.homeTeam.crest}" onerror="this.outerHTML='<div class=tph>⚽</div>'">`
+    : `<div class="tph">⚽</div>`;
+  const al = m.awayTeam?.crest
+    ? `<img class="tlogo" src="${m.awayTeam.crest}" onerror="this.outerHTML='<div class=tph>⚽</div>'">`
+    : `<div class="tph">⚽</div>`;
+
+  return `<div class="mc ${isLive?"live-card":""}" style="animation-delay:${idx*.05}s">
     <div class="team">${hl}<div class="tname">${m.homeTeam?.shortName||m.homeTeam?.name||"؟"}</div></div>
-    <div class="sc"><div class="snum">${score}</div><div class="stime ${tclass}">${tlabel}</div><div style="font-size:9px;color:#4a6580">${m.competition?.name||""}</div></div>
+    <div class="sc"><div class="snum">${score}</div><div class="stime ${tc}">${tl}</div><div class="scomp">${m.competition?.name||""}</div></div>
     <div class="team">${al}<div class="tname">${m.awayTeam?.shortName||m.awayTeam?.name||"؟"}</div></div>
   </div>`;
 }
 
-function setTab(s,btn){
-  currentStatus=s;
-  document.querySelectorAll("button[onclick^='setTab']").forEach(b=>{b.style.color="#4a6580";b.style.borderBottom="2px solid transparent";});
-  btn.style.color="#00d4ff";btn.style.borderBottom="2px solid #00d4ff";
+// ── تبويبات المباريات ──
+function setTab(s, btn) {
+  currentStatus = s;
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  btn.classList.add("active");
   loadMatches();
 }
 
+// ── مساعد ──
+function updateTime() {
+  const el = document.getElementById("lastUpd");
+  el.style.display = "block";
+  el.textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar");
+}
+function animSpin() {
+  const b = document.getElementById("rfbtn");
+  b.style.animation = "spin .7s linear";
+  setTimeout(() => b.style.animation = "", 700);
+}
+let toastT;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+// ── تشغيل ──
 loadMatches();
-setInterval(()=>{if(currentStatus==="LIVE")loadMatches();},45000);
 </script>
 </body>
 </html>
