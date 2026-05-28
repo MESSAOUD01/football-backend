@@ -241,25 +241,21 @@ function showPage(page) {
   currentPage = page;
   const isMatches = page === "matches";
 
-  // إظهار/إخفاء عناصر صفحة المباريات
   document.getElementById("sportTabs").style.display = isMatches ? "flex" : "none";
   document.getElementById("matchTabs").style.display = isMatches && currentSport==="football" ? "flex" : "none";
   document.getElementById("adBanner").style.display = isMatches ? "block" : "none";
   document.getElementById("matchesScroll").style.display = isMatches ? "flex" : "none";
   document.getElementById("matchesScroll").style.flexDirection = "column";
 
-  // إظهار/إخفاء الصفحات الأخرى
   ["standings","stats","alerts"].forEach(p => {
     const pageEl = document.getElementById("page-"+p);
     pageEl.style.display = p===page ? "flex" : "none";
     pageEl.style.flexDirection = "column";
   });
 
-  // تحديث أزرار الأسفل
   document.querySelectorAll(".ni").forEach(n => n.classList.remove("active"));
   document.getElementById("nav-"+page).classList.add("active");
   
-  // إيقاف التحديث التلقائي مؤقتاً عند مغادرة صفحة المباريات الرئيسية
   if (!isMatches) {
     clearInterval(autoTimer);
   } else {
@@ -294,7 +290,9 @@ async function loadContent(manual=false) {
     else await loadSportsDB();
     updateTime();
     resetAutoRefresh();
-  } catch(e) { showError("تعذّر الاتصال"); }
+  } catch(e) { 
+    showError("حدث خطأ أثناء جلب البيانات: " + e.message); 
+  }
   showLoader(false);
 }
 
@@ -303,7 +301,11 @@ async function loadFootball() {
   let params = currentStatus==="LIVE"
     ? {status:"IN_PLAY,PAUSED,HALFTIME"}
     : {status:currentStatus,dateFrom:new Date().toISOString().slice(0,10),dateTo:new Date().toISOString().slice(0,10)};
+  
   const res = await fetch(`${PROXY}/api/football?path=/matches&${new URLSearchParams(params)}`);
+  if (!res.ok) {
+    throw new Error(`السيرفر استجاب بخطأ ${res.status}`);
+  }
   const data = await res.json();
   renderFootball(data.matches||[]);
 }
@@ -311,7 +313,7 @@ async function loadFootball() {
 function renderFootball(matches) {
   const list = document.getElementById("contentList");
   if(!matches.length){
-    list.innerHTML=`<div class="empty"><div class="empty-icon">⚽</div><p>${currentStatus==="LIVE"?"لا توجد مباريات مباشرة<br><small>جرّب القادمة أو النتائج</small>":"لا توجد مباريات اليوم"}</p></div>`;
+    list.innerHTML=`<div class="empty"><div class="empty-icon">⚽</div><p>${currentStatus==="LIVE"?"لا توجد مباريات مباشرة حالياً<br><small>تفقّد التبويبات الأخرى</small>":"لا توجد مباريات مسجلة اليوم"}</p></div>`;
     return;
   }
   const groups={};
@@ -338,4 +340,4 @@ function buildFootballCard(m,idx){
   const al=m.awayTeam?.crest?`<img class="tlogo" src="${m.awayTeam.crest}" onerror="this.outerHTML='<div class=tph>⚽</div>'">`:`<div class="tph">⚽</div>`;
   return`<div class="mc ${isLive?"live-card":""}" style="animation-delay:${idx*.05}s">
     <div class="team">${hl}<div class="tname">${m.homeTeam?.shortName||m.homeTeam?.name||"؟"}</div></div>
-    <div class="sc"><div class="snum">${score}</div><div class="stime ${tc}">
+    <div class="sc"><div class="snum">${score}</div><div class="stime ${tc}">${tl}</div><div class="scomp">${m.c
