@@ -1,63 +1,108 @@
-// Cache في الذاكرة — يخزن النتائج ويوزعها لكل المستخدمين
 const cache = {};
-
-// مدة الـ Cache لكل نوع طلب (بالثواني)
 const CACHE_DURATION = {
-  LIVE: 30,        // مباريات مباشرة: 30 ثانية
-  SCHEDULED: 300,  // مباريات قادمة: 5 دقائق  
-  FINISHED: 600,   // نتائج: 10 دقائق
+  LIVE: 30,
+  SCHEDULED: 300,
+  FINISHED: 600,
   DEFAULT: 60,
 };
+
+// 🆓 مصادر مجانية بدون API Key
+const FREE_SOURCES = [
+  {
+    id: "thesportsdb",
+    fetchLive: async () => {
+      const r = await fetch(
+        "https://www.thesportsdb.com/api/v1/json/3/latestsoccer.php"
+      );
+      const d = await r.json();
+      return (d.events || []).map(e => ({
+        id: e.idEvent,
+        home: e.strHomeTeam,
+        away: e.strAwayTeam,
+        homeScore: e.intHomeScore,
+        awayScore: e.intAwayScore,
+        status: e.strStatus === "Match Finished" ? "FINISHED" :
+                e.strProgress ? "LIVE" : "SCHEDULED",
+        minute: e.strProgress || null,
+        league: e.strLeague,
+        homeLogo: `https://www.thesportsdb.com/images/media/team/badge/${e.idHomeTeam}.png`,
+        awayLogo: `https://www.thesportsdb.com/images/media/team/badge/${e.idAwayTeam}.png`,
+        source: "thesportsdb",
+      }));
+    }
+  },
+  {
+    id: "openfootball",
+    fetchLive: async () => {
+      const r = await fetch(
+        "https://raw.githubusercontent.com/openfootball/football.json/master/2024-25/en.1.json"
+      );
+      const d = await r.json();
+      const matches = [];
+      (d.rounds || []).forEach(round => {
+        (round.matches || []).forEach(m => {
+          matches.push({
+            id: `of_${m.date}_${m.team1?.name}`,
+            home: m.team1?.name || "",
+            away: m.team2?.name || "",
+            homeScore: m.score?.ft?.[0] ?? null,
+            awayScore: m.score?.ft?.[1] ?? null,
+            status: m.score?.ft ? "FINISHED" : "SCHEDULED",
+            minute: null,
+            league: "Premier League",
+            homeLogo: null,
+            awayLogo: null,
+            source: "openfootball",
+          });
+        });
+      });
+      return matches;
+    }
+  }
+];
+
+let sourceIndex = 0;
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const { path, ...params } = req.query;
-  if (!path) return res.status(400).json({ error: "Missing path" });
-
-  const apiKey = process.env.FOOTBALL_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "API key not set" });
-
-  // مفتاح الـ Cache = المسار + الباراميترات
-  const cacheKey = path + JSON.stringify(params);
-  
-  // تحديد مدة الـ Cache حسب نوع الطلب
-  const status = params.status || "DEFAULT";
-  let duration = CACHE_DURATION.DEFAULT;
-  if (status.includes("IN_PLAY") || status.includes("LIVE")) duration = CACHE_DURATION.LIVE;
-  else if (status === "SCHEDULED") duration = CACHE_DURATION.SCHEDULED;
-  else if (status === "FINISHED") duration = CACHE_DURATION.FINISHED;
-
-  // تحقق من الـ Cache — إذا موجود وما انتهت مدته، أرسله مباشرة
+  const cacheKey = "matches_" + (req.query.league || "all");
   const now = Date.now();
-  if (cache[cacheKey] && (now - cache[cacheKey].time) < duration * 1000) {
-    res.setHeader("X-Cache", "HIT"); // مؤشر أن البيانات من الـ Cache
+
+  // ✅ رجّع من Cache لو لسه صالح
+  if (cache[cacheKey] && (now - cache[cacheKey].time) < 30000) {
+    res.setHeader("X-Cache", "HIT");
+    res.setHeader("X-Source", cache[cacheKey].source);
     return res.status(200).json(cache[cacheKey].data);
   }
 
-  // طلب جديد من API (يحصل مرة واحدة فقط لكل الفترة)
-  const qs = new URLSearchParams(params).toString();
-  const url = `https://api.football-data.org/v4${path}${qs ? "?" + qs : ""}`;
+  // 🔄 جرّب المصادر بالتناوب
+  const tried = new Set();
+  while (tried.size < FREE_SOURCES.length) {
+    const src = FREE_SOURCES[sourceIndex % FREE_SOURCES.length];
+    sourceIndex++;
+    if (tried.has(src.id)) continue;
+    tried.add(src.id);
 
-  try {
-    const response = await fetch(url, {
-      headers: { "X-Auth-Token": apiKey }
-    });
-    const data = await response.json();
-
-    // خزّن في الـ Cache
-    cache[cacheKey] = { data, time: now };
-
-    res.setHeader("X-Cache", "MISS"); // مؤشر أن البيانات جديدة من API
-    return res.status(response.status).json(data);
-  } catch (err) {
-    // إذا فشل الطلب وعندنا cache قديم، أرسله كاحتياط
-    if (cache[cacheKey]) {
-      res.setHeader("X-Cache", "STALE");
-      return res.status(200).json(cache[cacheKey].data);
+    try {
+      const matches = await src.fetchLive();
+      const result = { matches, source: src.id, timestamp: now };
+      cache[cacheKey] = { data: result, time: now, source: src.id };
+      res.setHeader("X-Cache", "MISS");
+      res.setHeader("X-Source", src.id);
+      return res.status(200).json(result);
+    } catch (err) {
+      console.error(`Source ${src.id} failed:`, err.message);
     }
-    return res.status(500).json({ error: err.message });
   }
+
+  // ❌ كل المصادر فشلت — رجّع Cache القديم لو موجود
+  if (cache[cacheKey]) {
+    res.setHeader("X-Cache", "STALE");
+    return res.status(200).json(cache[cacheKey].data);
+  }
+
+  return res.status(500).json({ error: "All sources failed" });
 }
