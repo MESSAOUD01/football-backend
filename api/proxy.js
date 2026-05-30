@@ -11,8 +11,11 @@ const FREE_SOURCES = [
   {
     id: "thesportsdb",
     fetchLive: async () => {
-      const r = await fetch(
-        "https://www.thesportsdb.com/api/v1/json/3/latestsoccer.php"
+  fetchLive: async () => {
+  const today = new Date().toISOString().split('T')[0];
+  const r = await fetch(
+    `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${today}&s=Soccer`
+  );
       );
       const d = await r.json();
       return (d.events || []).map(e => ({
