@@ -1,240 +1,272 @@
-const cache = {};
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  MatchGo Smart Proxy — استغلال ذكي للـ APIs
+//  football-data.org : 8/min  → كل 7.5s للمباريات الحية
+//  API-Football      : 98/day → كل 14.7min للجدول الكامل
+//  TheSportsDB       : ∞      → fallback دائم مجاني
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  🆓 مصادر مجانية 100% بدون API Key
-//  TheSportsDB - لا يحتاج مفتاح على الإطلاق
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-function todayStr() {
-  return new Date().toISOString().split("T")[0];
-}
-
-// خريطة شعارات الفرق الشهيرة
-const LOGOS = {
-  "Cruz Azul":      "https://crests.football-data.org/cropped/466.png",
-  "Pumas UNAM":     "https://upload.wikimedia.org/wikipedia/en/thumb/8/82/Pumas_UNAM_logo.svg/200px-Pumas_UNAM_logo.svg.png",
-  "LA Galaxy":      "https://crests.football-data.org/cropped/1629.png",
-  "Inter Miami":    "https://upload.wikimedia.org/wikipedia/en/thumb/a/a2/Inter_Miami_CF_crest.svg/200px-Inter_Miami_CF_crest.svg.png",
-  "Seattle Sounders":"https://upload.wikimedia.org/wikipedia/en/thumb/1/1b/Seattle_Sounders_FC.svg/200px-Seattle_Sounders_FC.svg.png",
-  "LAFC":           "https://upload.wikimedia.org/wikipedia/en/thumb/3/33/Los_Angeles_FC_logo.svg/200px-Los_Angeles_FC_logo.svg.png",
-  "Flamengo":       "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Flamengo_badge.svg/200px-Flamengo_badge.svg.png",
-  "Palmeiras":      "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Palmeiras_logo.svg/200px-Palmeiras_logo.svg.png",
-  "Boca Juniors":   "https://crests.football-data.org/cropped/7784.png",
-  "River Plate":    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/River_Plate_logo.svg/200px-River_Plate_logo.svg.png",
+const cache = {
+  live:     { data: null, time: 0 },  // football-data.org — كل 7.5s
+  schedule: { data: null, time: 0 },  // API-Football      — كل 14.7min
+  fallback: { data: null, time: 0 },  // TheSportsDB       — كل 30s
 };
 
-function getLogo(teamName) {
-  for (const [key, url] of Object.entries(LOGOS)) {
-    if (teamName?.includes(key) || key?.includes(teamName)) return url;
+// ── حدود الوقت بالميلي ثانية ──
+const TTL = {
+  LIVE:     7500,          // 7.5  ثانية  — football-data.org
+  SCHEDULE: 882000,        // 14.7 دقيقة  — API-Football
+  FALLBACK: 30000,         // 30   ثانية  — TheSportsDB
+};
+
+// ── عداد يومي لـ API-Football ──
+let apifootball = {
+  callsToday: 0,
+  lastReset: Date.now(),
+  DAILY_LIMIT: 98,         // 98 من 100 (2 احتياط)
+};
+
+function resetDailyIfNeeded() {
+  const now = Date.now();
+  const oneDayMs = 86400000;
+  if (now - apifootball.lastReset >= oneDayMs) {
+    apifootball.callsToday = 0;
+    apifootball.lastReset = now;
   }
-  return null;
 }
 
-// ━━ Source 1: TheSportsDB — مباريات اليوم ━━
-async function fetchTheSportsDB() {
-  const today = todayStr();
-  const url = `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${today}&s=Soccer`;
-  const r = await fetch(url);
-  const d = await r.json();
-  if (!d.events) return [];
+function canCallAPIFootball() {
+  resetDailyIfNeeded();
+  return apifootball.callsToday < apifootball.DAILY_LIMIT;
+}
 
-  return d.events.map((e) => ({
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SOURCE 1 — football-data.org
+//  يُستدعى كل 7.5 ثانية للمباريات الحية
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function fetchLiveMatches(apiKey) {
+  const now = Date.now();
+  if (cache.live.data && now - cache.live.time < TTL.LIVE) {
+    return { data: cache.live.data, fromCache: true, source: "football-data" };
+  }
+
+  const url = "https://api.football-data.org/v4/matches?status=IN_PLAY,PAUSED";
+  const r = await fetch(url, { headers: { "X-Auth-Token": apiKey } });
+  if (!r.ok) throw new Error(`FD ${r.status}`);
+  const d = await r.json();
+
+  const matches = (d.matches || []).map(m => ({
+    id: `fd_${m.id}`,
+    home: m.homeTeam?.shortName || m.homeTeam?.name,
+    away: m.awayTeam?.shortName || m.awayTeam?.name,
+    homeFull: m.homeTeam?.name,
+    awayFull: m.awayTeam?.name,
+    homeScore: m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? null,
+    awayScore: m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? null,
+    status: "LIVE",
+    minute: m.minute || null,
+    league: m.competition?.name,
+    leagueCode: m.competition?.code,
+    homeLogo: m.homeTeam?.crest,
+    awayLogo: m.awayTeam?.crest,
+    venue: m.venue || null,
+    date: m.utcDate,
+    source: "football-data",
+  }));
+
+  cache.live = { data: matches, time: now };
+  return { data: matches, fromCache: false, source: "football-data" };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SOURCE 2 — API-Football
+//  يُستدعى كل 14.7 دقيقة للجدول الكامل
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function fetchSchedule(rapidKey) {
+  const now = Date.now();
+  if (cache.schedule.data && now - cache.schedule.time < TTL.SCHEDULE) {
+    return { data: cache.schedule.data, fromCache: true, source: "api-football" };
+  }
+
+  if (!canCallAPIFootball()) {
+    return { data: cache.schedule.data || [], fromCache: true, source: "api-football-limit" };
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const url = `https://api-football-v1.p.rapidapi.com/v3/fixtures?date=${today}&timezone=Africa/Algiers`;
+  const r = await fetch(url, {
+    headers: {
+      "X-RapidAPI-Key": rapidKey,
+      "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+    }
+  });
+  if (!r.ok) throw new Error(`AF ${r.status}`);
+  const d = await r.json();
+
+  apifootball.callsToday++;
+
+  const matches = (d.response || []).map(f => {
+    const short = f.fixture?.status?.short;
+    const status = ["1H","2H","HT","ET","P"].includes(short) ? "LIVE"
+                 : short === "FT" || short === "AET" || short === "PEN" ? "FT"
+                 : "NS";
+    return {
+      id: `af_${f.fixture?.id}`,
+      home: f.teams?.home?.name,
+      away: f.teams?.away?.name,
+      homeFull: f.teams?.home?.name,
+      awayFull: f.teams?.away?.name,
+      homeScore: f.goals?.home ?? null,
+      awayScore: f.goals?.away ?? null,
+      status,
+      minute: f.fixture?.status?.elapsed || null,
+      league: f.league?.name,
+      leagueCode: f.league?.country,
+      homeLogo: f.teams?.home?.logo,
+      awayLogo: f.teams?.away?.logo,
+      venue: f.fixture?.venue?.name || null,
+      date: f.fixture?.date,
+      source: "api-football",
+    };
+  });
+
+  cache.schedule = { data: matches, time: now };
+  return { data: matches, fromCache: false, source: "api-football" };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SOURCE 3 — TheSportsDB
+//  Fallback مجاني لا حدود له
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function fetchFallback() {
+  const now = Date.now();
+  if (cache.fallback.data && now - cache.fallback.time < TTL.FALLBACK) {
+    return { data: cache.fallback.data, fromCache: true, source: "thesportsdb" };
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const r = await fetch(
+    `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${today}&s=Soccer`
+  );
+  if (!r.ok) throw new Error(`TSDB ${r.status}`);
+  const d = await r.json();
+
+  const matches = (d.events || []).map(e => ({
     id: `tsdb_${e.idEvent}`,
     home: e.strHomeTeam,
     away: e.strAwayTeam,
+    homeFull: e.strHomeTeam,
+    awayFull: e.strAwayTeam,
     homeScore: e.intHomeScore !== null ? parseInt(e.intHomeScore) : null,
     awayScore: e.intAwayScore !== null ? parseInt(e.intAwayScore) : null,
-    status:
-      e.strStatus === "Match Finished" || e.strStatus === "FT"
-        ? "FT"
-        : e.strProgress && e.strProgress !== ""
-        ? "LIVE"
-        : "NS",
+    status: e.strStatus === "Match Finished" || e.strStatus === "FT" ? "FT"
+          : e.strProgress ? "LIVE" : "NS",
     minute: e.strProgress || null,
     league: e.strLeague,
-    leagueCountry: e.strCountry,
-    homeLogo:
-      e.strHomeTeamBadge ||
-      getLogo(e.strHomeTeam) ||
-      `https://www.thesportsdb.com/images/media/team/badge/${e.idHomeTeam}.png`,
-    awayLogo:
-      e.strAwayTeamBadge ||
-      getLogo(e.strAwayTeam) ||
-      `https://www.thesportsdb.com/images/media/team/badge/${e.idAwayTeam}.png`,
-    venue: e.strVenue,
-    time: e.strTime,
+    leagueCode: e.strCountry,
+    homeLogo: e.strHomeTeamBadge || `https://www.thesportsdb.com/images/media/team/badge/${e.idHomeTeam}.png`,
+    awayLogo: e.strAwayTeamBadge || `https://www.thesportsdb.com/images/media/team/badge/${e.idAwayTeam}.png`,
+    venue: e.strVenue || null,
+    date: e.dateEvent,
     source: "thesportsdb",
   }));
+
+  cache.fallback = { data: matches, time: now };
+  return { data: matches, fromCache: false, source: "thesportsdb" };
 }
 
-// ━━ Source 2: TheSportsDB — دوري MLS ━━
-async function fetchMLS() {
-  // League ID 4346 = MLS
-  const url = `https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php?id=4346`;
-  const r = await fetch(url);
-  const d = await r.json();
-  if (!d.events) return [];
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  MERGER — دمج بدون تكرار
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function mergeMatches(live, schedule, fallback) {
+  const seen = new Set();
+  const result = [];
 
-  return d.events.slice(0, 6).map((e) => ({
-    id: `mls_${e.idEvent}`,
-    home: e.strHomeTeam,
-    away: e.strAwayTeam,
-    homeScore: null,
-    awayScore: null,
-    status: "NS",
-    minute: null,
-    league: "MLS",
-    leagueCountry: "USA",
-    homeLogo: e.strHomeTeamBadge || getLogo(e.strHomeTeam),
-    awayLogo: e.strAwayTeamBadge || getLogo(e.strAwayTeam),
-    venue: e.strVenue,
-    time: e.strTime,
-    source: "thesportsdb",
-  }));
+  // أولوية: حية > جدول > fallback
+  for (const m of [...live, ...schedule, ...fallback]) {
+    const key = `${m.home?.toLowerCase()}_${m.away?.toLowerCase()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(m);
+    }
+  }
+
+  // ترتيب: حية → مجدولة → منتهية
+  const order = { LIVE: 0, NS: 1, FT: 2 };
+  return result.sort((a, b) => (order[a.status] ?? 1) - (order[b.status] ?? 1));
 }
 
-// ━━ Source 3: TheSportsDB — آخر نتائج Liga MX ━━
-async function fetchLigaMX() {
-  // League ID 4350 = Liga MX
-  const url = `https://www.thesportsdb.com/api/v1/json/3/eventspastleague.php?id=4350`;
-  const r = await fetch(url);
-  const d = await r.json();
-  if (!d.events) return [];
-
-  return d.events.slice(-5).map((e) => ({
-    id: `lmx_${e.idEvent}`,
-    home: e.strHomeTeam,
-    away: e.strAwayTeam,
-    homeScore: e.intHomeScore !== null ? parseInt(e.intHomeScore) : null,
-    awayScore: e.intAwayScore !== null ? parseInt(e.intAwayScore) : null,
-    status: "FT",
-    minute: "90",
-    league: "Liga MX",
-    leagueCountry: "Mexico",
-    homeLogo: e.strHomeTeamBadge || getLogo(e.strHomeTeam),
-    awayLogo: e.strAwayTeamBadge || getLogo(e.strAwayTeam),
-    venue: e.strVenue,
-    time: e.strTime,
-    source: "thesportsdb",
-  }));
-}
-
-// ━━ Source 4: TheSportsDB — البرازيل Serie A ━━
-async function fetchBrazil() {
-  // League ID 4351 = Brazil Serie A
-  const url = `https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php?id=4351`;
-  const r = await fetch(url);
-  const d = await r.json();
-  if (!d.events) return [];
-
-  return d.events.slice(0, 5).map((e) => ({
-    id: `bra_${e.idEvent}`,
-    home: e.strHomeTeam,
-    away: e.strAwayTeam,
-    homeScore: null,
-    awayScore: null,
-    status: "NS",
-    minute: null,
-    league: "Brazil Serie A",
-    leagueCountry: "Brazil",
-    homeLogo: e.strHomeTeamBadge || getLogo(e.strHomeTeam),
-    awayLogo: e.strAwayTeamBadge || getLogo(e.strAwayTeam),
-    venue: e.strVenue,
-    time: e.strTime,
-    source: "thesportsdb",
-  }));
-}
-
-// ━━ Source 5: TheSportsDB — الأرجنتين ━━
-async function fetchArgentina() {
-  // League ID 4406 = Argentine Primera Division
-  const url = `https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php?id=4406`;
-  const r = await fetch(url);
-  const d = await r.json();
-  if (!d.events) return [];
-
-  return d.events.slice(0, 5).map((e) => ({
-    id: `arg_${e.idEvent}`,
-    home: e.strHomeTeam,
-    away: e.strAwayTeam,
-    homeScore: null,
-    awayScore: null,
-    status: "NS",
-    minute: null,
-    league: "Argentina Primera",
-    leagueCountry: "Argentina",
-    homeLogo: e.strHomeTeamBadge || getLogo(e.strHomeTeam),
-    awayLogo: e.strAwayTeamBadge || getLogo(e.strAwayTeam),
-    venue: e.strVenue,
-    time: e.strTime,
-    source: "thesportsdb",
-  }));
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  HANDLER رئيسي
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  MAIN HANDLER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const { type = "all" } = req.query;
-  const cacheKey = `matches_${type}`;
-  const now = Date.now();
-  const CACHE_MS = 30000; // 30 ثانية
+  const FD_KEY     = process.env.FOOTBALL_API_KEY;
+  const RAPID_KEY  = process.env.RAPID_API_KEY;
 
-  // ✅ Cache hit
-  if (cache[cacheKey] && now - cache[cacheKey].time < CACHE_MS) {
-    res.setHeader("X-Cache", "HIT");
-    return res.status(200).json(cache[cacheKey].data);
-  }
+  resetDailyIfNeeded();
 
   try {
-    // جلب من كل المصادر بالتوازي
-    const [today, mls, ligamx, brazil, argentina] = await Promise.allSettled([
-      fetchTheSportsDB(),
-      fetchMLS(),
-      fetchLigaMX(),
-      fetchBrazil(),
-      fetchArgentina(),
+    const [r1, r2, r3] = await Promise.allSettled([
+      FD_KEY    ? fetchLiveMatches(FD_KEY)  : Promise.reject("no FD key"),
+      RAPID_KEY ? fetchSchedule(RAPID_KEY)  : Promise.reject("no Rapid key"),
+      fetchFallback(),
     ]);
 
-    const allMatches = [
-      ...(today.status === "fulfilled" ? today.value : []),
-      ...(mls.status === "fulfilled" ? mls.value : []),
-      ...(ligamx.status === "fulfilled" ? ligamx.value : []),
-      ...(brazil.status === "fulfilled" ? brazil.value : []),
-      ...(argentina.status === "fulfilled" ? argentina.value : []),
-    ];
+    const liveData     = r1.status === "fulfilled" ? r1.value.data : [];
+    const scheduleData = r2.status === "fulfilled" ? r2.value.data : [];
+    const fallbackData = r3.status === "fulfilled" ? r3.value.data : [];
 
-    // إزالة التكرار بالـ id
-    const unique = Array.from(
-      new Map(allMatches.map((m) => [m.id, m])).values()
-    );
+    const sources = [];
+    if (r1.status === "fulfilled") sources.push("football-data.org");
+    if (r2.status === "fulfilled") sources.push("api-football");
+    if (r3.status === "fulfilled") sources.push("thesportsdb");
 
-    // ترتيب: الحية أولاً ثم المجدولة ثم المنتهية
-    const order = { LIVE: 0, NS: 1, FT: 2 };
-    unique.sort((a, b) => (order[a.status] ?? 1) - (order[b.status] ?? 1));
+    const allMatches = mergeMatches(liveData, scheduleData, fallbackData);
 
-    const result = {
-      matches: unique,
-      total: unique.length,
-      live: unique.filter((m) => m.status === "LIVE").length,
-      sources: ["thesportsdb×5"],
-      timestamp: now,
-      cached: false,
-    };
-
-    cache[cacheKey] = { data: result, time: now };
-    res.setHeader("X-Cache", "MISS");
-    return res.status(200).json(result);
-  } catch (err) {
-    // رجّع Cache قديم لو فشل كل شيء
-    if (cache[cacheKey]) {
-      res.setHeader("X-Cache", "STALE");
-      return res.status(200).json({ ...cache[cacheKey].data, cached: true });
+    // استخدام الـ cache الكلي لو كل شيء فشل
+    if (!allMatches.length) {
+      const stale = [...(cache.live.data||[]), ...(cache.schedule.data||[]), ...(cache.fallback.data||[])];
+      if (stale.length) {
+        return res.status(200).json({
+          matches: mergeMatches(stale, [], []),
+          cached: true, stale: true,
+          sources, timestamp: Date.now(),
+        });
+      }
     }
+
+    res.setHeader("X-Cache", "MISS");
+    res.setHeader("X-Sources", sources.join(","));
+    res.setHeader("X-AF-Calls-Today", apifootball.callsToday);
+    res.setHeader("X-AF-Remaining", apifootball.DAILY_LIMIT - apifootball.callsToday);
+
+    return res.status(200).json({
+      matches: allMatches,
+      total:    allMatches.length,
+      live:     allMatches.filter(m => m.status === "LIVE").length,
+      finished: allMatches.filter(m => m.status === "FT").length,
+      upcoming: allMatches.filter(m => m.status === "NS").length,
+      sources,
+      ttl: {
+        live_refresh_ms:     TTL.LIVE,
+        schedule_refresh_ms: TTL.SCHEDULE,
+        fallback_refresh_ms: TTL.FALLBACK,
+      },
+      apifootball: {
+        calls_today:   apifootball.callsToday,
+        remaining:     apifootball.DAILY_LIMIT - apifootball.callsToday,
+        daily_limit:   apifootball.DAILY_LIMIT,
+        next_reset_ms: 86400000 - (Date.now() - apifootball.lastReset),
+      },
+      timestamp: Date.now(),
+      cached: false,
+    });
+
+  } catch (err) {
     return res.status(500).json({ error: err.message });
   }
     }
+    
