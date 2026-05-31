@@ -263,4 +263,645 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed',sans-
           <div class="clock-time" id="clock">00:00:00</div>
           <div class="clock-date" id="sync-time">connecting...</div>
         </div>
-      
+        <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Sound">🔔</button>
+        <div class="profile-btn" onclick="goTab('profile')" id="profile-btn-header">👤</div>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card" onclick="goTab('matches');setFilter('live')"><div class="stat-val" id="st-live" style="color:#00ff85">0</div><div class="stat-lbl">LIVE</div></div>
+      <div class="stat-card" onclick="goTab('matches');setFilter('results')"><div class="stat-val" id="st-ft" style="color:#ffd700">0</div><div class="stat-lbl">FT</div></div>
+      <div class="stat-card" onclick="goTab('matches');setFilter('soon')"><div class="stat-val" id="st-ns" style="color:#00c4ff">0</div><div class="stat-lbl">SOON</div></div>
+      <div class="stat-card"><div class="stat-val" id="st-syncs" style="color:#a78bfa">0</div><div class="stat-lbl">SYNCS</div></div>
+    </div>
+    <!-- TICKER -->
+    <div id="ticker" style="display:none;margin-top:8px">
+      <div class="ticker-pill">LIVE</div>
+      <div class="ticker-scroll"><div class="ticker-inner" id="ticker-txt"></div></div>
+    </div>
+    <!-- MAIN NAV -->
+    <div style="margin-top:8px">
+      <div class="main-tabs">
+        <button class="main-tab active" id="tab-matches" onclick="goTab('matches')">⚽ Matches<span class="tab-dot" id="dot-matches"></span></button>
+        <button class="main-tab" id="tab-standings" onclick="goTab('standings')">📊 Table</button>
+        <button class="main-tab" id="tab-profile" onclick="goTab('profile')">👤 Profile</button>
+        <button class="main-tab" id="tab-settings" onclick="openSettings()">⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+    <div class="state-screen"><div class="spinner"></div><div class="state-txt">LOADING...</div></div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div id="bnav">
+    <button class="bnav-btn active" id="bn-matches" onclick="goTab('matches')">
+      <span class="bnav-icon">⚽</span><span class="bnav-label">MATCHES</span>
+      <span class="bnav-dot" id="bnd-matches"></span>
+    </button>
+    <button class="bnav-btn" id="bn-standings" onclick="goTab('standings')">
+      <span class="bnav-icon">📊</span><span class="bnav-label">TABLE</span>
+    </button>
+    <button class="bnav-btn" id="bn-profile" onclick="goTab('profile')">
+      <span class="bnav-icon">👤</span><span class="bnav-label">PROFILE</span>
+    </button>
+    <button class="bnav-btn" id="bn-settings" onclick="openSettings()">
+      <span class="bnav-icon">⚙️</span><span class="bnav-label">SETTINGS</span>
+    </button>
+  </div>
+</div>
+
+<!-- MATCH DETAIL SHEET -->
+<div class="sheet-overlay" id="detail-overlay" onclick="closeDetail()">
+  <div class="sheet-panel" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div id="detail-content" style="padding:0 0 8px"></div>
+  </div>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div class="sheet-overlay" id="settings-overlay" onclick="closeSettings()">
+  <div class="sheet-panel" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">⚙️ SETTINGS</div>
+    <div class="sheet-sub">MatchGo Pro v2.0</div>
+
+    <!-- Theme -->
+    <div class="setting-section">
+      <div class="setting-label">🎨 Theme</div>
+      <div class="theme-grid">
+        <div class="theme-btn active" id="theme-dark" onclick="setTheme('dark')"><div class="theme-icon">🌙</div><div class="theme-name">DARK</div></div>
+        <div class="theme-btn" id="theme-light" onclick="setTheme('light')"><div class="theme-icon">☀️</div><div class="theme-name">LIGHT</div></div>
+      </div>
+    </div>
+
+    <!-- Sound -->
+    <div class="setting-section">
+      <div class="setting-label">🔔 Notifications</div>
+      <div class="setting-row">
+        <div class="setting-row-left">
+          <div class="setting-row-title">Goal Alert Sound</div>
+          <div class="setting-row-sub">تنبيه صوتي عند تسجيل هدف</div>
+        </div>
+        <button class="toggle on" id="toggle-sound" onclick="toggleSound()"><div class="toggle-knob"></div></button>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-left">
+          <div class="setting-row-title">Vibration</div>
+          <div class="setting-row-sub">اهتزاز عند التحديث</div>
+        </div>
+        <button class="toggle on" id="toggle-vibrate" onclick="toggleEl('toggle-vibrate','vibrate')"><div class="toggle-knob"></div></button>
+      </div>
+    </div>
+
+    <!-- Refresh -->
+    <div class="setting-section">
+      <div class="setting-label">⏱️ Refresh — <span id="refresh-val" style="color:var(--accent)">15s</span></div>
+      <div class="refresh-grid">
+        <div class="r-btn" id="rb-8" onclick="setRefresh(8)">8s</div>
+        <div class="r-btn active" id="rb-15" onclick="setRefresh(15)">15s</div>
+        <div class="r-btn" id="rb-30" onclick="setRefresh(30)">30s</div>
+        <div class="r-btn" id="rb-60" onclick="setRefresh(60)">60s</div>
+      </div>
+    </div>
+
+    <!-- Sources -->
+    <div class="setting-section">
+      <div class="setting-label">📡 API Sources</div>
+      <div class="src-row" id="src-fd">
+        <div class="src-dot" id="sdot-fd"></div>
+        <div class="src-info"><div class="src-name-txt">football-data.org</div><div class="src-detail-txt">12 دوري أوروبي • 8 req/min</div></div>
+        <span class="src-status-txt" id="sst-fd" style="color:var(--sub)">--</span>
+      </div>
+      <div class="src-row" id="src-af">
+        <div class="src-dot" id="sdot-af"></div>
+        <div class="src-info"><div class="src-name-txt">API-Football</div><div class="src-detail-txt">1236 دوري • 98/day</div></div>
+        <span class="src-status-txt" id="sst-af" style="color:var(--sub)">--</span>
+      </div>
+      <div class="src-row" id="src-ts">
+        <div class="src-dot" id="sdot-ts"></div>
+        <div class="src-info"><div class="src-name-txt">TheSportsDB</div><div class="src-detail-txt">Fallback مجاني ∞</div></div>
+        <span class="src-status-txt" id="sst-ts" style="color:#ffd700">ON</span>
+      </div>
+    </div>
+
+    <div style="font-size:8px;color:var(--sub);font-family:'DM Mono',monospace;text-align:center;line-height:1.8;margin-top:8px">
+      MatchGo Pro • football-backend-umber.vercel.app<br/>
+      Smart Rate Limiting • 3 Sources • مجاني 100%
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const API = 'https://football-backend-umber.vercel.app/api/proxy';
+const STANDINGS_API = 'https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?l=';
+
+const COLORS={
+  'Premier League':'#00ff85','La Liga':'#ffd700','Spanish La Liga':'#ffd700',
+  'UEFA Champions League':'#ffffff','Bundesliga':'#ff2020','Serie A':'#009246',
+  'Ligue 1':'#ef4135','MLS':'#00c4ff','Liga MX':'#00b140',
+  'Brazil Serie A':'#009c3b','Argentina Primera':'#74acdf','DEFAULT':'#888'
+};
+const FLAGS={
+  'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','La Liga':'🇪🇸','Spanish La Liga':'🇪🇸',
+  'UEFA Champions League':'⭐','Bundesliga':'🇩🇪','Serie A':'🇮🇹',
+  'Ligue 1':'🇫🇷','MLS':'🇺🇸','Liga MX':'🇲🇽',
+  'Brazil Serie A':'🇧🇷','Argentina Primera':'🇦🇷','DEFAULT':'🌍'
+};
+const SRC={
+  'football-data':{color:'#00ff85',label:'FD'},
+  'api-football':{color:'#00c4ff',label:'AF'},
+  'thesportsdb':{color:'#ffd700',label:'TS'}
+};
+const COMPS=[
+  {name:'Premier League',id:'4328',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},
+  {name:'La Liga',id:'4335',flag:'🇪🇸'},
+  {name:'Bundesliga',id:'4331',flag:'🇩🇪'},
+  {name:'Serie A',id:'4332',flag:'🇮🇹'},
+  {name:'Ligue 1',id:'4334',flag:'🇫🇷'},
+  {name:'MLS',id:'4346',flag:'🇺🇸'},
+];
+
+// ══ State ══
+let matches=[],sources=[],syncCount=0,filter='all',currentTab='matches';
+let refreshSec=15,countdown=15,soundOn=true,vibrateOn=true;
+let clockTmr,countTmr,prevScores={};
+let profile={name:'',handle:'',avatar:''};
+let favLeagues=new Set(['Premier League','La Liga']);
+let standingsData=[],currentComp=COMPS[0];
+let isDark=true;
+
+const gc=k=>COLORS[k]||COLORS.DEFAULT;
+const gf=k=>FLAGS[k]||FLAGS.DEFAULT;
+const f2=n=>n<10?'0'+n:''+n;
+const $=id=>document.getElementById(id);
+
+// ══ SOUND ══
+let audioCtx=null;
+function getAudioCtx(){
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function playGoalSound(){
+  if(!soundOn) return;
+  try{
+    const ctx=getAudioCtx();
+    const notes=[523,659,784,1047];
+    notes.forEach((freq,i)=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value=freq;
+      osc.type='sine';
+      gain.gain.setValueAtTime(0,ctx.currentTime+i*.12);
+      gain.gain.linearRampToValueAtTime(.3,ctx.currentTime+i*.12+.05);
+      gain.gain.linearRampToValueAtTime(0,ctx.currentTime+i*.12+.25);
+      osc.start(ctx.currentTime+i*.12);
+      osc.stop(ctx.currentTime+i*.12+.3);
+    });
+  }catch(e){}
+}
+function playNotifSound(){
+  if(!soundOn) return;
+  try{
+    const ctx=getAudioCtx();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value=880; osc.type='sine';
+    gain.gain.setValueAtTime(.2,ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0,ctx.currentTime+.15);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+.2);
+  }catch(e){}
+}
+function toggleSound(){
+  soundOn=!soundOn;
+  $('sound-btn').textContent=soundOn?'🔔':'🔕';
+  const t=$('toggle-sound');
+  t.classList.toggle('on',soundOn); t.classList.toggle('off',!soundOn);
+}
+function toggleEl(id,key){
+  const t=$(id); const isOn=t.classList.contains('on');
+  t.classList.toggle('on',!isOn); t.classList.toggle('off',isOn);
+  if(key==='vibrate') vibrateOn=!isOn;
+}
+
+// ══ THEME ══
+function setTheme(t){
+  isDark=t==='dark';
+  document.body.classList.toggle('light',!isDark);
+  $('theme-dark').classList.toggle('active',isDark);
+  $('theme-light').classList.toggle('active',!isDark);
+}
+
+// ══ CLOCK ══
+function startClock(){
+  clockTmr=setInterval(()=>{
+    const n=new Date();
+    $('clock').textContent=f2(n.getHours())+':'+f2(n.getMinutes())+':'+f2(n.getSeconds());
+  },1000);
+}
+
+// ══ COUNTDOWN ══
+function startCountdown(){
+  clearInterval(countTmr); countdown=refreshSec;
+  countTmr=setInterval(()=>{
+    countdown--;
+    const pct=1-countdown/refreshSec;
+    $('ring').setAttribute('stroke-dasharray',(pct*88)+' 88');
+    $('ring-num').textContent=countdown;
+    if(countdown<=0){fetchData();countdown=refreshSec;}
+  },1000);
+}
+function setRefresh(s){
+  refreshSec=s; countdown=s;
+  ['8','15','30','60'].forEach(v=>{
+    $(('rb-'+v)).classList.toggle('active',v==s);
+  });
+  $('refresh-val').textContent=s+'s';
+  startCountdown();
+}
+
+// ══ FETCH ══
+async function fetchData(){
+  try{
+    const r=await fetch(API+'?t='+Date.now());
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(d.matches){
+      checkGoals(d.matches);
+      matches=d.matches; sources=d.sources||[];
+      syncCount++;
+      const n=new Date();
+      $('sync-time').textContent='↺ '+f2(n.getHours())+':'+f2(n.getMinutes())+':'+f2(n.getSeconds());
+      updateStats(); updateTicker(); updateSrcPanel();
+      if(currentTab==='matches') renderMatches();
+    }
+  }catch(e){
+    if(currentTab==='matches') renderError(e.message);
+  }
+}
+
+function checkGoals(newMatches){
+  newMatches.forEach(m=>{
+    const prev=prevScores[m.id];
+    if(prev&&m.status==='LIVE'){
+      const hDiff=(m.homeScore||0)-(prev.h||0);
+      const aDiff=(m.awayScore||0)-(prev.a||0);
+      if(hDiff>0||aDiff>0){
+        playGoalSound();
+        if(vibrateOn&&navigator.vibrate) navigator.vibrate([200,100,200]);
+        showGoalToast(m,hDiff>0?m.home:m.away);
+      }
+    }
+    prevScores[m.id]={h:m.homeScore,a:m.awayScore};
+  });
+}
+
+function showGoalToast(m,scorer){
+  const t=document.createElement('div');
+  t.style.cssText=`position:fixed;top:80px;left:50%;transform:translateX(-50%);
+    background:linear-gradient(135deg,#00ff85,#00c4ff);color:#000;
+    font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;
+    padding:10px 20px;border-radius:12px;z-index:999;letter-spacing:.5px;
+    box-shadow:0 8px 24px #00ff8540;animation:popIn .3s ease`;
+  t.textContent='⚽ GOAL! '+scorer;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+
+// ══ STATS ══
+function updateStats(){
+  const live=matches.filter(m=>m.status==='LIVE').length;
+  $('st-live').textContent=live;
+  $('st-ft').textContent=matches.filter(m=>m.status==='FT').length;
+  $('st-ns').textContent=matches.filter(m=>m.status==='NS').length;
+  $('st-syncs').textContent=syncCount;
+  $('logo-sub').textContent=sources.length+' SOURCES • '+matches.length+' MATCHES';
+  const bd=$('bnd-matches');
+  if(live>0){bd.style.display='block';}else{bd.style.display='none';}
+}
+
+function updateTicker(){
+  const live=matches.filter(m=>m.status==='LIVE');
+  const tk=$('ticker');
+  if(!live.length){tk.style.display='none';return;}
+  tk.style.display='flex';
+  const txt=live.map(m=>`⚽ ${m.home} ${m.homeScore??'-'}:${m.awayScore??'-'} ${m.away}${m.minute?' '+m.minute+"'":''}`).join('     •     ');
+  $('ticker-txt').textContent=txt+'          '+txt;
+}
+
+function updateSrcPanel(){
+  const map={'football-data':'fd','api-football':'af','thesportsdb':'ts'};
+  const colors={'football-data':'#00ff85','api-football':'#00c4ff','thesportsdb':'#ffd700'};
+  Object.entries(map).forEach(([src,k])=>{
+    const on=sources.some(s=>s.toLowerCase().includes(src.split('-')[0]));
+    const c=colors[src];
+    $('sdot-'+k).innerHTML=dotH(on?c:'#555',7);
+    $('sst-'+k).textContent=on?'ON':'OFF';
+    $('sst-'+k).style.color=on?c:'var(--sub)';
+  });
+}
+
+// ══ TABS ══
+function goTab(t){
+  currentTab=t;
+  ['matches','standings','profile'].forEach(x=>{
+    $('tab-'+x)?.classList.toggle('active',x===t);
+    $('bn-'+x)?.classList.toggle('active',x===t);
+  });
+  if(t==='matches') renderMatches();
+  else if(t==='standings') renderStandings();
+  else if(t==='profile') renderProfile();
+}
+
+function setFilter(f){filter=f;renderMatches();}
+
+// ══ MATCHES ══
+function getFiltered(){
+  if(filter==='live') return matches.filter(m=>m.status==='LIVE');
+  if(filter==='results') return matches.filter(m=>m.status==='FT');
+  if(filter==='soon') return matches.filter(m=>m.status==='NS');
+  return matches;
+}
+
+function renderMatches(){
+  const list=getFiltered();
+  const el=$('content');
+
+  // Filter bar
+  const filterBar=`<div style="display:flex;gap:6px;margin-bottom:8px;overflow-x:auto;padding-bottom:2px">
+    ${['all','live','results','soon'].map(f=>`
+      <button onclick="setFilter('${f}')" style="padding:5px 12px;border-radius:20px;border:1px solid ${filter===f?'var(--accent)':'var(--border)'};
+        background:${filter===f?'var(--accent)18':'transparent'};color:${filter===f?'var(--accent)':'var(--sub)'};
+        font-family:'DM Mono',monospace;font-size:9px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+        ${{all:'🌍 All',live:'🔴 Live',results:'✅ FT',soon:'🕐 Soon'}[f]}
+      </button>`).join('')}
+  </div>`;
+
+  if(!list.length){
+    el.innerHTML=filterBar+`<div class="state-screen"><div style="font-size:40px;opacity:.2">⚽</div><div class="state-txt">NO MATCHES</div></div>`;
+    return;
+  }
+  el.innerHTML=filterBar+list.map((m,i)=>cardH(m,i)).join('');
+}
+
+function cardH(m,i){
+  const color=gc(m.league); const flag=gf(m.league);
+  const src=SRC[m.source]||{color:'#555',label:'?'};
+  const isLive=m.status==='LIVE',isFT=m.status==='FT';
+  const statusH=isLive
+    ?`<div class="live-badge">${dotH(color,7)}<span class="live-min" style="color:${color}">${m.minute}'</span></div>`
+    :isFT?`<span class="ft-chip">FT</span>`
+    :`<span class="ns-chip">${m.time||'Soon'}</span>`;
+  const scoreH=m.homeScore!==null
+    ?`<div class="score-nums"><span style="color:${m.homeScore>m.awayScore?color:'var(--text)'}">${m.homeScore}</span><span class="score-sep">:</span><span style="color:${m.awayScore>m.homeScore?color:'var(--text)'}">${m.awayScore}</span></div>${isLive?`<div class="live-indicator" style="color:${color};background:${color}18">LIVE</div>`:''}`
+    :`<span class="vs-txt">vs</span>`;
+  return `<div class="mcard" style="animation-delay:${.15+i*.04}s" onclick="openDetail(${JSON.stringify(m.id).replace(/"/g,"'")})">
+    ${isLive?`<div class="card-glow" style="background:linear-gradient(90deg,transparent,${color},transparent)"></div>`:''}
+    <div class="card-top">
+      <div class="card-league-info">
+        <span class="league-flag">${flag}</span>
+        <span class="league-name">${m.league}</span>
+        <span class="src-chip" style="color:${src.color};background:${src.color}18;border:1px solid ${src.color}30">${src.label}</span>
+      </div>
+      <div class="card-right">${statusH}</div>
+    </div>
+    <div class="card-body">
+      <div class="team-col left">
+        <img class="team-crest" src="${m.homeLogo||''}" onerror="this.style.display='none'"/>
+        <span class="team-nm">${m.home}</span>
+      </div>
+      <div class="score-center">${scoreH}</div>
+      <div class="team-col right">
+        <img class="team-crest" src="${m.awayLogo||''}" onerror="this.style.display='none'"/>
+        <span class="team-nm">${m.away}</span>
+      </div>
+    </div>
+    ${m.venue?`<div class="card-venue">📍 ${m.venue}</div>`:''}
+  </div>`;
+}
+
+function renderError(msg){
+  $('content').innerHTML=`<div class="state-screen">
+    <div style="font-size:36px;opacity:.3">📡</div>
+    <div class="state-txt" style="color:#ff3a3a">${msg}</div>
+    <button class="retry-btn" onclick="fetchData()">↺ RETRY</button>
+  </div>`;
+}
+
+// ══ DETAIL ══
+function openDetail(id){
+  const m=matches.find(x=>x.id===id); if(!m) return;
+  const color=gc(m.league); const flag=gf(m.league);
+  const src=SRC[m.source]||{color:'#555',label:'?'};
+  const statusH=m.status==='LIVE'
+    ?`<div style="display:flex;align-items:center;gap:5px">${dotH(color,8)}<span style="color:${color};font-family:'DM Mono',monospace;font-size:12px;font-weight:700">LIVE ${m.minute}'</span></div>`
+    :m.status==='FT'?`<span style="color:var(--sub);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px">FULL TIME</span>`
+    :`<span style="color:#00c4ff;font-family:'DM Mono',monospace;font-size:11px">UPCOMING</span>`;
+  $('detail-content').innerHTML=`
+    <div style="border-top:2px solid ${color};margin:0 -20px;margin-top:8px"></div>
+    <div class="detail-header">
+      <div class="detail-league">${flag} ${m.league} <span style="font-size:7px;padding:1px 4px;border-radius:3px;background:${src.color}18;color:${src.color};border:1px solid ${src.color}30">${src.label}</span></div>
+      <button class="close-btn" onclick="closeDetail()">×</button>
+    </div>
+    <div class="detail-score-row">
+      <div class="detail-team">
+        <img class="detail-logo" src="${m.homeLogo||''}" onerror="this.style.display='none'"/>
+        <span class="detail-name">${m.homeFull||m.home}</span>
+      </div>
+      <div class="detail-score-mid">
+        ${m.homeScore!==null?`<div class="detail-score"><span style="color:${m.homeScore>m.awayScore?color:'var(--text)'}">${m.homeScore}</span><span class="detail-sep">:</span><span style="color:${m.awayScore>m.homeScore?color:'var(--text)'}">${m.awayScore}</span></div>`:
+        `<div style="font-size:26px;color:var(--border)">vs</div>`}
+        ${statusH}
+      </div>
+      <div class="detail-team">
+        <img class="detail-logo" src="${m.awayLogo||''}" onerror="this.style.display='none'"/>
+        <span class="detail-name">${m.awayFull||m.away}</span>
+      </div>
+    </div>
+    ${m.venue?`<div class="info-box"><div class="info-box-label">VENUE</div><div class="info-box-val">📍 ${m.venue}</div></div>`:''}
+    <div class="info-box"><div class="info-box-label">COMPETITION</div><div class="info-box-val">${flag} ${m.league}</div></div>
+    <div class="info-box"><div class="info-box-label">DATA SOURCE</div><div class="info-box-val">${dotH(src.color,6)} ${m.source==='football-data'?'football-data.org':m.source==='api-football'?'API-Football':'TheSportsDB'} ✅</div></div>
+  `;
+  $('detail-overlay').classList.add('open');
+}
+function closeDetail(){$('detail-overlay').classList.remove('open');}
+
+// ══ STANDINGS ══
+async function renderStandings(){
+  $('content').innerHTML=`<div class="state-screen"><div class="spinner"></div><div class="state-txt">LOADING TABLE...</div></div>`;
+  try{
+    const r=await fetch(`${STANDINGS_API}${currentComp.id}`);
+    const d=await r.json();
+    standingsData=d.table||[];
+    buildStandingsUI();
+  }catch(e){
+    $('content').innerHTML=`<div class="state-screen"><div class="state-txt" style="color:#ff3a3a">Failed to load table</div><button class="retry-btn" onclick="renderStandings()">↺ RETRY</button></div>`;
+  }
+}
+
+function buildStandingsUI(){
+  const picker=COMPS.map(c=>`<button class="comp-btn${c.id===currentComp.id?' active':''}" onclick="selectComp('${c.id}')">${c.flag} ${c.name}</button>`).join('');
+  const rows=standingsData.map((t,i)=>{
+    const pos=i+1;
+    const posColor=pos<=4?'#00ff85':pos<=6?'#ffd700':pos>standingsData.length-3?'#ff3a3a':'var(--sub)';
+    return `<div class="st-row">
+      <span class="st-pos" style="color:${posColor}">${pos}</span>
+      <div class="st-team">
+        <img class="st-crest" src="${t.strTeamBadge||''}" onerror="this.style.display='none'"/>
+        <span class="st-name">${t.strTeam}</span>
+      </div>
+      <span class="st-num">${t.intPlayed||0}</span>
+      <span class="st-num">${t.intWin||0}</span>
+      <span class="st-num">${t.intLoss||0}</span>
+      <span class="st-num">${(t.intGoalsFor||0)-(t.intGoalsAgainst||0)}</span>
+      <span class="st-pts">${t.intPoints||0}</span>
+    </div>`;
+  }).join('');
+  $('content').innerHTML=`<div class="standings-wrap">
+    <div class="comp-picker">${picker}</div>
+    <div class="standings-table">
+      <div class="st-head"><span>#</span><span>Club</span><span>P</span><span>W</span><span>L</span><span>GD</span><span>PTS</span></div>
+      ${rows||'<div style="padding:20px;text-align:center;color:var(--sub);font-family:DM Mono,monospace;font-size:10px">NO DATA</div>'}
+    </div>
+    <div style="display:flex;gap:12px;padding:8px 4px">
+      <div style="display:flex;align-items:center;gap:5px">${dotH('#00ff85',7)}<span style="font-size:9px;color:var(--sub);font-family:'DM Mono',monospace">UCL</span></div>
+      <div style="display:flex;align-items:center;gap:5px">${dotH('#ffd700',7)}<span style="font-size:9px;color:var(--sub);font-family:'DM Mono',monospace">UEL</span></div>
+      <div style="display:flex;align-items:center;gap:5px">${dotH('#ff3a3a',7)}<span style="font-size:9px;color:var(--sub);font-family:'DM Mono',monospace">REL</span></div>
+    </div>
+  </div>`;
+}
+
+function selectComp(id){
+  currentComp=COMPS.find(c=>c.id===id)||COMPS[0];
+  renderStandings();
+}
+
+// ══ PROFILE ══
+function renderProfile(){
+  const savedName=localStorage.getItem('mg_name')||'';
+  const savedHandle=localStorage.getItem('mg_handle')||'';
+  const savedAvatar=localStorage.getItem('mg_avatar')||'';
+  $('content').innerHTML=`<div class="profile-page">
+    <div class="profile-hero">
+      <div class="profile-avatar-wrap" onclick="pickAvatar()">
+        <div class="profile-avatar" id="profile-avatar">
+          ${savedAvatar?`<img src="${savedAvatar}" style="width:100%;height:100%;object-fit:cover"/>`:savedName?savedName[0].toUpperCase():'👤'}
+        </div>
+        <div class="avatar-edit">✏️</div>
+      </div>
+      <div class="profile-name" id="profile-name-display">${savedName||'Your Name'}</div>
+      <div class="profile-handle" id="profile-handle-display">${savedHandle?'@'+savedHandle:'@handle'}</div>
+      <div class="profile-edit-form">
+        <input class="profile-input" id="inp-name" placeholder="Your Name" value="${savedName}" oninput="previewProfile()"/>
+        <input class="profile-input" id="inp-handle" placeholder="@handle" value="${savedHandle}" oninput="previewProfile()"/>
+        <input type="file" id="avatar-file" accept="image/*" style="display:none" onchange="loadAvatar(event)"/>
+        <button class="profile-save-btn" onclick="saveProfile()">💾 SAVE PROFILE</button>
+      </div>
+    </div>
+    <div class="profile-stats">
+      <div class="pstat"><div class="pstat-val">${syncCount}</div><div class="pstat-lbl">SYNCS</div></div>
+      <div class="pstat"><div class="pstat-val">${matches.filter(m=>m.status==='LIVE').length}</div><div class="pstat-lbl">LIVE NOW</div></div>
+      <div class="pstat"><div class="pstat-val">${matches.length}</div><div class="pstat-lbl">MATCHES</div></div>
+    </div>
+    <div class="fav-leagues">
+      <div class="section-title">⭐ Favourite Leagues</div>
+      <div class="fav-list">
+        ${Object.entries(FLAGS).filter(([k])=>k!=='DEFAULT').map(([k,v])=>`
+          <button class="fav-chip${favLeagues.has(k)?' on':''}" onclick="toggleFav('${k}')">${v} ${k}</button>
+        `).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function previewProfile(){
+  const n=$('inp-name').value; const h=$('inp-handle').value;
+  $('profile-name-display').textContent=n||'Your Name';
+  $('profile-handle-display').textContent=h?'@'+h:'@handle';
+  const av=$('profile-avatar');
+  if(!localStorage.getItem('mg_avatar')&&n) av.textContent=n[0].toUpperCase();
+}
+function pickAvatar(){ $('avatar-file')?.click(); }
+function loadAvatar(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    localStorage.setItem('mg_avatar',ev.target.result);
+    const av=$('profile-avatar');
+    av.innerHTML=`<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover"/>`;
+    // Update header avatar
+    const hav=$('profile-btn-header');
+    hav.innerHTML=`<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:8px"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+function saveProfile(){
+  const n=$('inp-name').value; const h=$('inp-handle').value;
+  localStorage.setItem('mg_name',n); localStorage.setItem('mg_handle',h);
+  showToast('✅ Profile saved!');
+}
+function toggleFav(k){
+  if(favLeagues.has(k)) favLeagues.delete(k); else favLeagues.add(k);
+  renderProfile();
+}
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText=`position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+    background:var(--card);border:1px solid var(--border);color:var(--text);
+    font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;
+    padding:10px 20px;border-radius:12px;z-index:999;letter-spacing:.5px;
+    box-shadow:0 8px 24px #00000040;animation:popIn .3s ease`;
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
+}
+
+// ══ SETTINGS ══
+function openSettings(){$('settings-overlay').classList.add('open');}
+function closeSettings(){$('settings-overlay').classList.remove('open');}
+
+// ══ DOT HTML ══
+function dotH(color,size){
+  return `<span class="dot" style="width:${size}px;height:${size}px">
+    <span class="dot-ping" style="background:${color}"></span>
+    <span class="dot-core" style="width:${size}px;height:${size}px;background:${color}"></span>
+  </span>`;
+}
+
+// ══ SCROLL HEADER ══
+window.addEventListener('scroll',()=>{
+  $('header').classList.toggle('scrolled',window.scrollY>10);
+},{passive:true});
+
+// ══ LOAD SAVED PROFILE ══
+function loadSavedProfile(){
+  const av=localStorage.getItem('mg_avatar');
+  if(av){
+    const hav=$('profile-btn-header');
+    hav.innerHTML=`<img src="${av}" style="width:100%;height:100%;object-fit:cover;border-radius:8px"/>`;
+  }
+}
+
+// ══ INIT ══
+window.addEventListener('load',()=>{
+  startClock();
+  loadSavedProfile();
+  // fetch أولاً ثم نخفي الـ splash
+  fetchData().finally(()=>{
+    setTimeout(()=>{
+      $('splash').style.opacity='0';
+      $('splash').style.transition='opacity .5s ease';
+      setTimeout(()=>{ try{$('splash').remove();}catch(e){} },500);
+    },600);
+  });
+  startCountdown();
+});
+</script>
+</body>
+</html>
